@@ -1,55 +1,56 @@
 class RoadmapService:
 
-    def generate_roadmap(self, project):
+    @staticmethod
+    def generate_roadmap(data):
+        roadmap = []
 
-        technologies = project.get("technologies", [])
+        languages = data.get("top_languages", {})
+        total_repos = data.get("public_repos", 0)
 
-        steps = []
+        # 🔥 No data case
+        if not languages:
+            return [
+                "Start with Python or JavaScript",
+                "Learn basic programming",
+                "Build 2-3 beginner projects"
+            ]
 
-        # Step 1
-        steps.append({
-            "step": 1,
-            "title": "Project Setup",
-            "description": "Initialize the project repository and setup the development environment."
-        })
+        # 🔥 Based on top language
+        top_lang = max(languages, key=languages.get)
 
-        # Step 2
-        steps.append({
-            "step": 2,
-            "title": "Design System Architecture",
-            "description": "Define frontend, backend, and database architecture."
-        })
+        if top_lang == "Python":
+            roadmap.extend([
+                "Learn Data Structures & Algorithms",
+                "Explore Django / FastAPI",
+                "Build backend projects",
+                "Try Machine Learning basics"
+            ])
 
-        # Technology specific steps
-        if "django" in [t.lower() for t in technologies]:
+        elif top_lang == "JavaScript":
+            roadmap.extend([
+                "Master React.js",
+                "Learn Node.js & Express",
+                "Build full-stack apps",
+                "Explore Next.js"
+            ])
 
-            steps.append({
-                "step": 3,
-                "title": "Build Backend API",
-                "description": "Create Django models, serializers, and REST APIs."
-            })
+        elif top_lang == "C":
+            roadmap.extend([
+                "Learn C++ or Java",
+                "Practice DSA",
+                "Start competitive programming",
+                "Build small system projects"
+            ])
 
-        if "react" in [t.lower() for t in technologies]:
+        else:
+            roadmap.append(f"Improve your skills in {top_lang}")
 
-            steps.append({
-                "step": 4,
-                "title": "Develop Frontend",
-                "description": "Build user interface using React and integrate APIs."
-            })
+        # 🔥 Repo-based suggestions
+        if total_repos < 5:
+            roadmap.append("Build at least 5 strong projects")
+        elif total_repos < 15:
+            roadmap.append("Improve project quality & add advanced features")
+        else:
+            roadmap.append("Focus on real-world scalable applications")
 
-        if "machine learning" in [t.lower() for t in technologies] or "nlp" in [t.lower() for t in technologies]:
-
-            steps.append({
-                "step": 5,
-                "title": "Integrate AI Model",
-                "description": "Develop and integrate machine learning model."
-            })
-
-        # Final step
-        steps.append({
-            "step": 6,
-            "title": "Testing and Deployment",
-            "description": "Test the application and deploy to production."
-        })
-
-        return steps
+        return roadmap

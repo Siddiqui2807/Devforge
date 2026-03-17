@@ -1,7 +1,6 @@
 from django.urls import path
-from .views import RoadmapListView, RoadmapDetailView
+from apps.roadmaps.views.github_view import GitHubAnalyzeView
 
 urlpatterns = [
-    path("roadmaps/", RoadmapListView.as_view()),
-    path("roadmaps/<int:pk>/", RoadmapDetailView.as_view()),
+    path('github/analyze/', GitHubAnalyzeView.as_view(), name='github-analyze'),
 ]
