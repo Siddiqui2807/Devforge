@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import Roadmap, RoadmapStep, UserProgress
 
-# Register your models here.
+admin.site.register(Roadmap)
+admin.site.register(RoadmapStep)
+admin.site.register(UserProgress)

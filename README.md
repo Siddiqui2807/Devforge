@@ -8,7 +8,7 @@ DevForge is an intelligent developer platform that analyzes your **GitHub profil
 
 ---
 
-![License](https://img.shields.io/badge/license-MIT-blue)
+
 ![React](https://img.shields.io/badge/frontend-react-blue)
 ![Django](https://img.shields.io/badge/backend-django-green)
 ![PostgreSQL](https://img.shields.io/badge/database-postgresql-blue)
