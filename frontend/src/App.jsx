@@ -1,35 +1,49 @@
-import { Routes, Route, Link } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
-import Analyzer from "./pages/Analyzer";
-import Resume from "./pages/Resume";
-import Roadmap from "./pages/Roadmap";
+import { Suspense, lazy } from "react";
+import { BrowserRouter as Router, Navigate, Routes, Route } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+const Login = lazy(() => import("./pages/Login"));
+const Roadmaps = lazy(() => import("./pages/Roadmaps"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Generate = lazy(() => import("./pages/Generate"));
+const GithubAnalyzer = lazy(() => import("./pages/GitHubAnalyzer"));
+const Recommendations = lazy(() => import("./pages/Recommendations"));
+
+const RouteLoadingFallback = () => (
+  <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="surface-card flex items-center gap-3 px-5 py-4 text-sm text-slate-300">
+      <span className="inline-spinner" aria-hidden="true" />
+      Loading workspace...
+    </div>
+  </div>
+);
 
 function App() {
   return (
-    <div className="flex min-h-screen">
-
-      {/* SIDEBAR */}
-      <div className="w-64 bg-gray-900 text-white p-5">
-        <h1 className="text-xl font-bold mb-6">🚀 DevForge</h1>
-
-        <nav className="flex flex-col space-y-3">
-          <Link to="/" className="hover:text-blue-400">Dashboard</Link>
-          <Link to="/analyzer" className="hover:text-blue-400">Analyzer</Link>
-          <Link to="/roadmap" className="hover:text-blue-400">Roadmap</Link>
-          <Link to="/resume" className="hover:text-blue-400">Resume</Link>
-        </nav>
-      </div>
-
-      {/* MAIN CONTENT */}
-      <div className="flex-1 bg-gray-100 p-6">
+    <Router>
+      <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/analyzer" element={<Analyzer />} />
-          <Route path="/roadmap" element={<Roadmap />} />
-          <Route path="/resume" element={<Resume />} />
+          {/* Public */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            <Route path="/generate" element={<Generate />} />
+            <Route path="/roadmaps" element={<Roadmaps />} />
+            <Route path="/my-roadmaps" element={<Navigate to="/roadmaps" replace />} />
+            <Route path="/github" element={<GithubAnalyzer />} />
+            <Route path="/github-analyzer" element={<Navigate to="/github" replace />} />
+            <Route path="/recommend" element={<Recommendations />} />
+            <Route path="/recommendations" element={<Navigate to="/recommend" replace />} />
+          </Route>
+
+          {/* Prevent blank pages on unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
-    </div>
+      </Suspense>
+    </Router>
   );
 }
 

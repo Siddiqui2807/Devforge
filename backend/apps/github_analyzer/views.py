@@ -1,40 +1,20 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import JSONParser
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .services.github_service import analyze_github_user
 
-from apps.github_analyzer.services.github_service import GithubService
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def github_analyzer(request):
+    username = (request.GET.get("username") or "").strip()
 
-class GithubAnalyzeView(APIView):
+    if not username:
+        return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    parser_classes = [JSONParser]
+    result = analyze_github_user(username)
+    if isinstance(result, dict) and result.get("error"):
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
 
-    def post(self, request):
-
-        github_username = request.data.get("github_username")
-
-        if not github_username:
-            return Response(
-                {"error": "github_username is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        service = GithubService()
-
-        try:
-            result = service.sync_github_profile(
-                user=request.user,
-                github_username=github_username
-            )
-
-            return Response(
-                result,
-                status=status.HTTP_200_OK
-            )
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    return Response(result, status=status.HTTP_200_OK)

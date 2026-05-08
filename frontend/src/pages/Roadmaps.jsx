@@ -1,90 +1,126 @@
 import { useEffect, useState } from "react";
 import { getRoadmaps } from "../services/roadmapService";
-import { toggleProgress } from "../services/progressService";
-import api from "../api/axios";
+import { getErrorMessage } from "../services/errorService";
 
-function Roadmaps() {
-  const [roadmaps, setRoadmaps] = useState([]);
-  const [completedSteps, setCompletedSteps] = useState([]);
+const Roadmaps = () => {
+  const [data, setData] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    const fetchRoadmaps = async () => {
+      setLoading(true);
+
+      try {
+        const roadmapList = await getRoadmaps();
+        setData(roadmapList);
+        setError("");
+      } catch (err) {
+        console.error(err);
+        setError(getErrorMessage(err, "Unable to load roadmaps."));
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoadmaps();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      const roadmapData = await getRoadmaps();
-      setRoadmaps(roadmapData);
-
-      // fetch completed steps
-      const progressRes = await api.get("/progress/");
-      const completedIds = progressRes.data.map((p) => p.step);
-      setCompletedSteps(completedIds);
-
-    } catch (error) {
-      console.error("Error:", error);
-    }
+  const getSkillTitle = (item) => {
+    const value = item?.skill || item?.title || "";
+    return String(value).trim() || "Untitled roadmap";
   };
 
-  const handleToggle = async (stepId) => {
-    try {
-      await toggleProgress(stepId);
-      fetchData(); // refresh UI after update
-    } catch (error) {
-      console.error("Error updating progress:", error);
+  const getPreviewText = (item) => {
+    const rawContent =
+      (typeof item?.content === "string" && item.content.trim()) ||
+      (typeof item?.description === "string" && item.description.trim()) ||
+      "";
+
+    if (!rawContent) {
+      return "No roadmap details available yet.";
     }
+
+    const lines = rawContent
+      .replace(/\r/g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      return "No roadmap details available yet.";
+    }
+
+    return lines.slice(0, 5).join(" ");
   };
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Developer Roadmaps</h1>
-
-      {roadmaps.map((roadmap) => {
-        const total = roadmap.steps.length;
-        const completed = roadmap.steps.filter((s) =>
-          completedSteps.includes(s.id)
-        ).length;
-
-        const percentage = total ? Math.round((completed / total) * 100) : 0;
-
-        return (
-          <div key={roadmap.id} className="mb-8 border p-4 rounded bg-white">
-
-            <h2 className="text-xl font-semibold">{roadmap.title}</h2>
-            <p className="mb-2 text-gray-600">{roadmap.description}</p>
-
-            {/* Progress Bar */}
-            <div className="mb-3">
-              <div className="text-sm mb-1">{percentage}% completed</div>
-              <div className="w-full bg-gray-200 rounded h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded"
-                  style={{ width: `${percentage}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <ul>
-              {roadmap.steps.map((step) => (
-                <li key={step.id} className="flex items-center gap-2 mb-2">
-
-                  <input
-                    type="checkbox"
-                    checked={completedSteps.includes(step.id)}
-                    onChange={() => handleToggle(step.id)}
-                  />
-
-                  <span>{step.title}</span>
-
-                </li>
-              ))}
-            </ul>
-
-          </div>
-        );
-      })}
+  const renderLoadingCards = () => (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {[1, 2, 3].map((index) => (
+        <div key={index} className="surface-card animate-pulse p-5">
+          <div className="h-4 w-32 rounded bg-slate-700" />
+          <div className="mt-4 h-3 w-11/12 rounded bg-slate-700" />
+          <div className="mt-2 h-3 w-10/12 rounded bg-slate-700" />
+          <div className="mt-2 h-3 w-8/12 rounded bg-slate-700" />
+        </div>
+      ))}
     </div>
   );
-}
+
+  return (
+    <section className="space-y-6">
+      <div className="surface-card p-6">
+        <p className="section-eyebrow">Learning Library</p>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-100 md:text-3xl">
+          My Roadmaps
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+          Review all saved roadmap outputs in one place and continue building
+          your skill plan.
+        </p>
+      </div>
+
+      {error && (
+        <div className="alert-error p-4 text-sm">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        renderLoadingCards()
+      ) : data.length === 0 ? (
+        <div className="surface-card p-8 text-center">
+          <h2 className="text-lg font-semibold text-slate-100">No roadmaps found</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Create a roadmap from the Generate page to see it listed here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-100">Saved Roadmaps</h2>
+            <span className="badge-blue">
+              {data.length} total
+            </span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {data.map((item, index) => (
+              <article key={item.id || index} className="card p-5">
+                <h3 className="text-base font-semibold text-slate-100">
+                  {getSkillTitle(item)}
+                </h3>
+                <p className="mt-3 max-h-28 overflow-hidden text-sm leading-6 text-slate-300">
+                  {getPreviewText(item)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
 
 export default Roadmaps;

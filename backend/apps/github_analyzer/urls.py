@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import GithubAnalyzeView
+from .views import github_analyzer
 
 urlpatterns = [
-    path("analyze/", GithubAnalyzeView.as_view(), name="github-analyze"),
+    path('analyze/', github_analyzer),
 ]

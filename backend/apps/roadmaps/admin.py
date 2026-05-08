@@ -1,6 +1,4 @@
 from django.contrib import admin
-from .models import Roadmap, RoadmapStep, UserProgress
+from .models import Roadmap
 
 admin.site.register(Roadmap)
-admin.site.register(RoadmapStep)
-admin.site.register(UserProgress)

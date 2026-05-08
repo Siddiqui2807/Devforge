@@ -1,0 +1,14 @@
+# class Animal:
+#     def sound(self):
+#         print("Animal sounds")
+# class Dog(Animal):
+#     print("dog make sound brak")
+
+# d = Dog()
+# d.sound()
+
+def add(a,b):
+    return a+b
+print(add(2,3))
+print(add("Hi " , "aamna"))
+

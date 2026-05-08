@@ -1,73 +1,115 @@
+from __future__ import annotations
+
 import requests
-from django.contrib.auth import get_user_model
 
-from apps.github_analyzer.models import GithubProfile, Repository
-from apps.projects.services.skill_service import SkillService
-
-User = get_user_model()
+GITHUB_API_BASE = "https://api.github.com"
+DEFAULT_TIMEOUT_SECONDS = 12
 
 
-class GithubService:
+def _safe_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
-    BASE_URL = "https://api.github.com"
 
-    def fetch_github_profile(self, username):
-        url = f"{self.BASE_URL}/users/{username}"
-        response = requests.get(url)
+def _to_list_of_dicts(value):
+    return value if isinstance(value, list) else []
 
-        if response.status_code != 200:
-            raise Exception("GitHub user not found")
 
-        return response.json()
+def _get_json(url):
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "DevForge-GitHub-Analyzer",
+    }
 
-    def fetch_repositories(self, username):
-        url = f"{self.BASE_URL}/users/{username}/repos"
-        response = requests.get(url)
+    try:
+        response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT_SECONDS)
+    except requests.RequestException:
+        return None, "Unable to reach GitHub API. Please try again later."
 
-        if response.status_code != 200:
-            raise Exception("Failed to fetch repositories")
+    if response.status_code == 404:
+        return None, "GitHub user not found."
 
-        return response.json()
+    if response.status_code >= 400:
+        return None, "GitHub API error. Please try again later."
 
-    def sync_github_profile(self, user, github_username):
+    try:
+        return response.json(), None
+    except ValueError:
+        return None, "Invalid response received from GitHub API."
 
-        profile_data = self.fetch_github_profile(github_username)
 
-        profile, _ = GithubProfile.objects.update_or_create(
-            user=user,
-            defaults={
-                "username": profile_data["login"],
-                "avatar_url": profile_data["avatar_url"],
-                "profile_url": profile_data["html_url"],
-                "bio": profile_data["bio"],
-                "public_repos": profile_data["public_repos"],
-                "followers": profile_data["followers"],
-                "following": profile_data["following"],
+def analyze_github_user(username):
+    cleaned_username = str(username or "").strip()
+    if not cleaned_username:
+        return {"error": "Username is required."}
+
+    user_data, user_error = _get_json(f"{GITHUB_API_BASE}/users/{cleaned_username}")
+    if user_error:
+        return {"error": user_error}
+
+    repos_data, repos_error = _get_json(
+        f"{GITHUB_API_BASE}/users/{cleaned_username}/repos?per_page=100&sort=updated"
+    )
+    if repos_error:
+        return {"error": repos_error}
+
+    repos = _to_list_of_dicts(repos_data)
+    repo_count = _safe_int(user_data.get("public_repos")) or len(repos)
+
+    language_count = {}
+    total_stars = 0
+    total_forks = 0
+    top_repositories = []
+
+    for repo in repos:
+        if not isinstance(repo, dict):
+            continue
+
+        language = repo.get("language")
+        if language:
+            language_count[language] = language_count.get(language, 0) + 1
+
+        stars = _safe_int(repo.get("stargazers_count"))
+        forks = _safe_int(repo.get("forks_count"))
+        total_stars += stars
+        total_forks += forks
+
+        top_repositories.append(
+            {
+                "name": repo.get("name") or "",
+                "language": language or "N/A",
+                "stars": stars,
+                "forks": forks,
+                "url": repo.get("html_url") or "",
+                "updated_at": repo.get("updated_at") or "",
+                "description": repo.get("description") or "",
             }
         )
 
-        repos = self.fetch_repositories(github_username)
+    sorted_languages = sorted(language_count.items(), key=lambda pair: pair[1], reverse=True)
+    skills = [language for language, _ in sorted_languages]
+    languages = skills[:8]
 
-        for repo in repos:
-            Repository.objects.update_or_create(
-                github_profile=profile,
-                name=repo["name"],
-                defaults={
-                    "description": repo["description"],
-                    "language": repo["language"],
-                    "stars": repo["stargazers_count"],
-                    "forks": repo["forks_count"],
-                    "repo_url": repo["html_url"],
-                    "created_at": repo["created_at"],
-                    "updated_at": repo["updated_at"],
-                }
-            )
+    top_repositories = sorted(
+        top_repositories,
+        key=lambda repo: (repo["stars"], repo["forks"]),
+        reverse=True,
+    )[:5]
 
-        # Run skill analysis
-        skill_service = SkillService()
-        skills = skill_service.analyze_user_skills(user)
-
-        return {
-            "profile": profile.username,
-            "skills": skills
-        }
+    return {
+        "username": user_data.get("login") or cleaned_username,
+        "name": user_data.get("name") or "",
+        "bio": user_data.get("bio") or "",
+        "profile_url": user_data.get("html_url") or f"https://github.com/{cleaned_username}",
+        "avatar_url": user_data.get("avatar_url") or "",
+        "followers": _safe_int(user_data.get("followers")),
+        "following": _safe_int(user_data.get("following")),
+        "repo_count": repo_count,
+        "skills": skills,
+        "languages": languages,
+        "total_stars": total_stars,
+        "total_forks": total_forks,
+        "top_repositories": top_repositories,
+    }

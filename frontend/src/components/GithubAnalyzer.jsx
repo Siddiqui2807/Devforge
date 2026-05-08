@@ -1,30 +1,34 @@
-import { useState, useContext } from "react";
-import { AppContext } from "../context/AppContext";
+import { useState } from "react";
+import { useAppContext } from "../context/AppContext";
+import { analyzeGithubUser } from "../services/githubService";
+import { getErrorMessage } from "../services/errorService";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 
 function GithubAnalyzer() {
   const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { setData } = useContext(AppContext);
+  const { loading, error, run } = useAsyncAction();
+  const { setData } = useAppContext();
 
   const handleAnalyze = async () => {
-    if (!username) return;
-
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `http://127.0.0.1:8001/api/github/analyze/?username=${username}`
-      );
-      const result = await res.json();
-      setData(result); // 🔥 GLOBAL STORE
-    } catch (error) {
-      console.error(error);
+    if (!username) {
+      return;
     }
-    setLoading(false);
+
+    const responseData = await run(() => analyzeGithubUser(username), {
+      onError: (requestError) => {
+        console.error(requestError);
+        return getErrorMessage(requestError, "Unable to analyze this username.");
+      },
+    });
+
+    if (responseData) {
+      setData(responseData);
+    }
   };
 
   return (
     <div className="p-6 text-center">
-      <h2 className="text-2xl font-bold mb-4">🔍 GitHub Analyzer</h2>
+      <h2 className="text-2xl font-bold mb-4">GitHub Analyzer</h2>
 
       <input
         className="border px-4 py-2 rounded mr-2"
@@ -42,6 +46,7 @@ function GithubAnalyzer() {
       </button>
 
       {loading && <p className="mt-3">Loading...</p>}
+      {error && <p className="mt-3 text-red-600">{error}</p>}
     </div>
   );
 }
