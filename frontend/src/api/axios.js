@@ -3,7 +3,7 @@ import axios from "axios";
 let isRedirectingToLogin = false;
 
 const api = axios.create({
-,baseURL: import.meta.env.VITE_API_BASE_URL || "https://devforge-backend-bwwk.onrender.com/api",
+baseURL: import.meta.env.VITE_API_BASE_URL || "https://devforge-backend-bwwk.onrender.com/api",
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
